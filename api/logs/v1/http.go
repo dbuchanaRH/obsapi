@@ -14,6 +14,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/stolostron/mcoa-gateway/proxy"
+	"github.com/stolostron/mcoa-gateway/server"
 	"github.com/stolostron/mcoa-gateway/tls"
 	"github.com/stolostron/mcoa-gateway/tracing"
 )
@@ -414,6 +415,7 @@ func NewHandler(read, tail, write, rules *url.URL, rulesReadOnly bool, tlsOption
 		}
 		r.Group(func(r chi.Router) {
 			r.Use(c.writeMiddlewares...)
+			r.Use(server.StripPrefix("/api/logs/v1"))
 			r.Handle(otlpRoute, c.instrument.NewHandler(
 				prometheus.Labels{"group": "logsv1", "handler": "otlp"},
 				proxyWrite,
