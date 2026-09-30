@@ -451,6 +451,18 @@ func main() {
 				t.TLSClientConfig.RootCAs.AppendCertsFromPEM(caCert)
 			}
 
+			if cfg.tls.clientAuthType == "RequireAndVerifyClientCert" &&
+				cfg.tls.serverCertFile != "" && cfg.tls.serverKeyFile != "" {
+				clientCert, err := stdtls.LoadX509KeyPair(
+					cfg.tls.serverCertFile,
+					cfg.tls.serverKeyFile,
+				)
+				if err != nil {
+					stdlog.Fatalf("failed to load healthcheck client certificate: %v", err)
+				}
+				t.TLSClientConfig.Certificates = []stdtls.Certificate{clientCert}
+			}
+
 			// checks if server is up
 			healthchecks.AddLivenessCheck("http",
 				healthcheck.HTTPCheckClient(
