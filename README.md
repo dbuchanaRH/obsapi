@@ -505,6 +505,20 @@ tenants:
 | `--metrics.tenant-header`         | Tenant header name (default: `THANOS-TENANT`)     |
 | `--metrics.tenant-label`          | Tenant label for filtering (default: `tenant_id`) |
 
+`--metrics.alertmanager.endpoint` configures the existing single-upstream Alertmanager API proxy. Alert writes fan out to replicas configured with `--alertmanager.endpoint` below.
+
+#### Alertmanager alert fanout
+
+| Flag | Description |
+|------|-------------|
+| `--alertmanager.endpoint` | Alertmanager replica endpoint; repeat for each replica |
+| `--alertmanager.tenant-header` | Tenant header sent to replicas (default: `X-Scope-OrgID`) |
+| `--alertmanager.upstream-timeout` | Timeout for requests to replicas |
+| `--alertmanager.upstream-ca-file` | CA bundle for TLS connections to replicas |
+| `--alertmanager.upstream-server-name` | TLS server name for connections to replicas |
+
+Alert writes are accepted at `POST /api/alertmanager/v2/{tenant}/api/v1/alerts` and are sent to every configured replica.
+
 #### Logs (Loki)
 
 | Flag                        | Description                                   |
