@@ -20,7 +20,7 @@ import (
 
 const (
 	dialTimeout             = 30 * time.Second
-	AlertmanagerAlertsRoute = "/api/v1/alerts"
+	AlertmanagerAlertsRoute = "/api/v2/alerts"
 )
 
 type handlerConfiguration struct {
@@ -51,6 +51,22 @@ func Registry(r *prometheus.Registry) HandlerOption {
 func WriteMiddleware(m func(http.Handler) http.Handler) HandlerOption {
 	return func(h *handlerConfiguration) {
 		h.writeMiddlewares = append(h.writeMiddlewares, m)
+	}
+}
+
+// WithAccessorToken sets the Authorization header on forwarded alert writes.
+func WithAccessorToken(token string) HandlerOption {
+	return func(h *handlerConfiguration) {
+		if token == "" {
+			return
+		}
+
+		h.writeMiddlewares = append(h.writeMiddlewares, func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				r.Header.Set("Authorization", "Bearer "+token)
+				next.ServeHTTP(w, r)
+			})
+		})
 	}
 }
 

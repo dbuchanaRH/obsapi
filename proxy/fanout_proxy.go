@@ -9,6 +9,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	chi "github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
@@ -58,11 +59,16 @@ func FanoutRequestToEndpoints(client *http.Client, endpoints []*url.URL, logger 
 			successCnt atomic.Int32
 		)
 
+		routePath := r.URL.Path
+		if rctx := chi.RouteContext(r.Context()); rctx != nil && rctx.RoutePath != "" {
+			routePath = rctx.RoutePath
+		}
+
 		for _, ep := range endpoints {
 			wg.Add(1)
 			go func(ep *url.URL) {
 				defer wg.Done()
-				targetURL, err := url.JoinPath(ep.String(), r.URL.Path)
+				targetURL, err := url.JoinPath(ep.String(), routePath)
 				if err != nil {
 					level.Error(rlogger).Log("msg", "failed to get url", "err", err, "url", targetURL)
 					return

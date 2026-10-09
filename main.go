@@ -201,6 +201,7 @@ type tracesConfig struct {
 type alertmanagerConfig struct {
 	endpoints          []*url.URL
 	tenantHeader       string
+	accessorTokenFile  string
 	upstreamTimeout    time.Duration
 	upstreamCAFile     string
 	upstreamServerName string
@@ -311,6 +312,18 @@ func main() {
 	if !cfg.metrics.enabled && !cfg.logs.enabled && !cfg.traces.enabled && !cfg.probes.enabled && !cfg.alertmanager.isEnabled() {
 		stdlog.Fatal("Neither logging, metrics, traces, probes, nor alertmanager endpoints are enabled. " +
 			"Specifying at least one endpoint is mandatory")
+	}
+
+	alertmanagerAccessorToken := ""
+	if cfg.alertmanager.isEnabled() && cfg.alertmanager.accessorTokenFile != "" {
+		token, err := os.ReadFile(cfg.alertmanager.accessorTokenFile)
+		if err != nil {
+			stdlog.Fatalf("failed to read Alertmanager accessor token file: %v", err)
+		}
+		alertmanagerAccessorToken = strings.TrimSpace(string(token))
+		if alertmanagerAccessorToken == "" {
+			stdlog.Fatal("Alertmanager accessor token file is empty")
+		}
 	}
 
 	logger := logger.NewLogger(cfg.logLevel, cfg.logFormat, cfg.debug.name)
@@ -584,9 +597,8 @@ func main() {
 				}(authenticatorConfig, authenticatorType, t.Name)
 			}
 
-			// Alertmanager alert writes are routed by tenant in the URL. The
-			// tenant authenticator validates the request, and the handler maps the
-			// tenant name to its configured upstream ID header before fanout.
+			// Alertmanager alert writes extract the tenant from the client
+			// certificate OU, then map it to the configured upstream ID header.
 			if cfg.alertmanager.isEnabled() {
 				alertmanagerRateLimitMiddleware := ratelimit.WithLocalRateLimiter(rateLimits...)
 				if rateLimitClient != nil {
@@ -595,8 +607,6 @@ func main() {
 
 				r.Group(func(r chi.Router) {
 					r.Use(middleware.Timeout(cfg.alertmanager.upstreamTimeout))
-					r.Use(authentication.WithTenantFromURLParam("tenant", cfg.alertmanager.tenantHeader))
-					r.Use(authentication.WithTenantMiddlewares(pm.Middlewares))
 
 					alertmanagerHandler := alertsv1.NewHandler(
 						cfg.alertmanager.endpoints,
@@ -604,10 +614,12 @@ func main() {
 						cfg.alertmanager.upstreamServerName,
 						alertsv1.Logger(logger),
 						alertsv1.Registry(reg),
+						alertsv1.WriteMiddleware(authentication.WithMTLSTenantExtraction(logger, cfg.alertmanager.tenantHeader)),
 						alertsv1.WithTenantHeader(cfg.alertmanager.tenantHeader, tenantIDs),
+						alertsv1.WithAccessorToken(alertmanagerAccessorToken),
 						alertsv1.WriteMiddleware(alertmanagerRateLimitMiddleware),
 					)
-					r.Mount("/api/alertmanager/v2/{tenant}", alertmanagerHandler)
+					r.Mount("/api/alertmanager/v2", alertmanagerHandler)
 				})
 			}
 
@@ -1257,6 +1269,8 @@ func parseFlags() (config, error) {
 		"TLS ServerName for Alertmanager upstream connections (SNI and certificate verification). Empty lets Go infer from the request URL.")
 	flag.StringVar(&cfg.alertmanager.tenantHeader, "alertmanager.tenant-header", "X-Scope-OrgID",
 		"The tenant header to set on requests forwarded to Alertmanager replicas.")
+	flag.StringVar(&cfg.alertmanager.accessorTokenFile, "alertmanager.accessor-token-file", "",
+		"File containing the Observability Alertmanager accessor token to send as a Bearer token to replicas.")
 	flag.DurationVar(&cfg.alertmanager.upstreamTimeout, "alertmanager.upstream-timeout", metricsMiddlewareTimeout,
 		"The HTTP timeout for fanout requests to Alertmanager replicas.")
 

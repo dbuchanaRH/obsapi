@@ -505,19 +505,18 @@ tenants:
 | `--metrics.tenant-header`         | Tenant header name (default: `THANOS-TENANT`)     |
 | `--metrics.tenant-label`          | Tenant label for filtering (default: `tenant_id`) |
 
-`--metrics.alertmanager.endpoint` configures the existing single-upstream Alertmanager API proxy. Alert writes fan out to replicas configured with `--alertmanager.endpoint` below.
-
 #### Alertmanager alert fanout
 
 | Flag | Description |
-|------|-------------|
+|---------------------------------------|-------------------------------------------------------------------|
 | `--alertmanager.endpoint` | Alertmanager replica endpoint; repeat for each replica |
 | `--alertmanager.tenant-header` | Tenant header sent to replicas (default: `X-Scope-OrgID`) |
+| `--alertmanager.accessor-token-file` | File containing the Bearer token to send to Alertmanager replicas |
 | `--alertmanager.upstream-timeout` | Timeout for requests to replicas |
 | `--alertmanager.upstream-ca-file` | CA bundle for TLS connections to replicas |
 | `--alertmanager.upstream-server-name` | TLS server name for connections to replicas |
 
-Alert writes are accepted at `POST /api/alertmanager/v2/{tenant}/api/v1/alerts` and are sent to every configured replica.
+Alert writes are accepted at `POST /api/alertmanager/v2/api/v1/alerts`. The tenant is extracted from the OU field of the verified client certificate, then mapped to its configured tenant ID when one is available. When `--alertmanager.accessor-token-file` is set, its contents are sent to every replica as `Authorization: Bearer <token>`; configure it with the mounted file path for the accessor token selected by the deployment.
 
 #### Logs (Loki)
 
