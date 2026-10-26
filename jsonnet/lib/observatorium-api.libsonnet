@@ -174,29 +174,13 @@ function(params) {
                            ] else [])
                       else []
                     ) +
-                    (if std.objectHas(api.config.alertmanager, 'endpoint') then [
-                      '--metrics.alertmanager.endpoint=' + api.config.alertmanager.endpoint,
-                    ] else []) +
-                    (if std.objectHas(api.config.alertmanager, 'fanoutEndpoints') then [
-                      '--alertmanager.endpoint=' + ep
-                      for ep in api.config.alertmanager.fanoutEndpoints
-                    ] else []) +
-                    (if std.objectHas(api.config.alertmanager, 'accessorTokenSecret') then [
-                      '--alertmanager.accessor-token-file=/var/run/secrets/alertmanager-accessor/'
-                      + std.get(api.config.alertmanager.accessorTokenSecret, 'key', 'token'),
-                    ] else []) +
-                    (if std.objectHas(api.config.alertmanager, 'upstreamCAFile') then [
-                      '--alertmanager.upstream-ca-file=' + api.config.alertmanager.upstreamCAFile,
-                    ] else []) +
-                    (if std.objectHas(api.config.alertmanager, 'upstreamServerName') then [
-                      '--alertmanager.upstream-server-name=' + api.config.alertmanager.upstreamServerName,
-                    ] else []) +
-                    (if std.objectHas(api.config.alertmanager, 'tenantHeader') then [
-                      '--alertmanager.tenant-header=' + api.config.alertmanager.tenantHeader,
-                    ] else []) +
-                    (if std.objectHas(api.config.alertmanager, 'upstreamTimeout') then [
-                      '--alertmanager.upstream-timeout=' + api.config.alertmanager.upstreamTimeout,
-                    ] else [])
+                    (
+                      if api.config.alertmanager != {} then
+                        [
+                          '--metrics.alertmanager.endpoint=' + api.config.alertmanager.endpoint,
+                        ]
+                      else []
+                    )
                     + (
                       if api.config.rbac != {} then ['--rbac.config=/etc/observatorium/rbac.yaml'] else []
                     ) + (
@@ -301,11 +285,6 @@ function(params) {
                    subPath: 'tenants.yaml',
                    readOnly: true,
                  }] else []) +
-                (if std.objectHas(api.config.alertmanager, 'accessorTokenSecret') then [{
-                   name: 'alertmanager-accessor',
-                   mountPath: '/var/run/secrets/alertmanager-accessor',
-                   readOnly: true,
-                 }] else []) +
                 (if std.objectHas(api.config.tenants, 'tenants') then [
                    {
                      name: tenant.name + '-mtls-%s' % (if std.objectHas(tenant.mTLS, 'configMapName') then 'configmap' else 'secret'),
@@ -370,13 +349,6 @@ function(params) {
                  name: 'tenants',
                },
              ] else []) +
-            (if std.objectHas(api.config.alertmanager, 'accessorTokenSecret') then [{
-               name: 'alertmanager-accessor',
-               secret: {
-                 secretName: api.config.alertmanager.accessorTokenSecret.secretName,
-                 optional: std.get(api.config.alertmanager.accessorTokenSecret, 'optional', true),
-               },
-             }] else []) +
             (if std.objectHas(api.config.tenants, 'tenants') then [
                if std.objectHas(tenant.mTLS, 'secretName') then {
                  secret: {

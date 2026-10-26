@@ -12,10 +12,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-kit/log"
+	"github.com/prometheus/client_golang/prometheus"
+
 	"github.com/stolostron/mcoa-gateway/authentication"
 	"github.com/stolostron/mcoa-gateway/proxy"
-
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
@@ -152,7 +152,7 @@ func NewHandler(endpoints []*url.URL, upstreamCAFile string, upstreamServerName 
 	caPool := loadCACertPool(upstreamCAFile)
 	client := newHTTPClient(caPool, upstreamServerName)
 
-	alertFanout := proxy.FanoutRequestToEndpoints(client, endpoints, c.logger, proxy.NewFanoutMetrics(c.registry))
+	alertFanout := proxy.FanoutRequestToEndpoints(client, endpoints, AlertmanagerAlertsRoute, c.logger, proxy.NewFanoutMetrics(c.registry))
 	r.Group(func(r chi.Router) {
 		r.Use(c.writeMiddlewares...)
 		r.Post(AlertmanagerAlertsRoute, alertFanout.ServeHTTP)

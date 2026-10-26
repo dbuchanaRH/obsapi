@@ -83,7 +83,7 @@ func TestFanout_SendsToAllEndpoints(t *testing.T) {
 	}
 
 	client := &http.Client{}
-	handler := FanoutRequestToEndpoints(client, endpoints, log.NewNopLogger(), NewFanoutMetrics(prometheus.NewRegistry()))
+	handler := FanoutRequestToEndpoints(client, endpoints, "/api/v1/items", log.NewNopLogger(), NewFanoutMetrics(prometheus.NewRegistry()))
 
 	payload := []byte(`{"event":"fanout-test"}`)
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/items", bytes.NewReader(payload))
@@ -128,29 +128,30 @@ func TestFanout_SendsToAllEndpoints(t *testing.T) {
 	}
 }
 
-func TestFanout_AppendsRequestPath(t *testing.T) {
+func TestFanout_UsesConfiguredRoutePath(t *testing.T) {
 	backend := newFakeBackend(t)
 	endpoints := []*url.URL{mustParseURL(t, backend.url())}
 
 	client := &http.Client{}
-	handler := FanoutRequestToEndpoints(client, endpoints, log.NewNopLogger(), NewFanoutMetrics(prometheus.NewRegistry()))
+	const routePath = "/api/v1/items"
+	handler := FanoutRequestToEndpoints(client, endpoints, routePath, log.NewNopLogger(), NewFanoutMetrics(prometheus.NewRegistry()))
 
-	for _, path := range []string{"/api/v1/items", "/api/v2/items"} {
-		req := httptest.NewRequest(http.MethodPost, path, bytes.NewReader([]byte(`[]`)))
+	for _, requestPath := range []string{"/incoming/one", "/incoming/two"} {
+		req := httptest.NewRequest(http.MethodPost, requestPath, bytes.NewReader([]byte(`[]`)))
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 
 		waitForBackends(t, []*fakeBackend{backend}, backend.count())
 
-		if got := backend.path(); got != path {
-			t.Errorf("request to %s: backend received path %q, want %q", path, got, path)
+		if got := backend.path(); got != routePath {
+			t.Errorf("request to %s: backend received path %q, want %q", requestPath, got, routePath)
 		}
 	}
 }
 
 func TestFanout_EmptyEndpoints(t *testing.T) {
 	client := &http.Client{}
-	handler := FanoutRequestToEndpoints(client, nil, log.NewNopLogger(), NewFanoutMetrics(prometheus.NewRegistry()))
+	handler := FanoutRequestToEndpoints(client, nil, "/api/v1/items", log.NewNopLogger(), NewFanoutMetrics(prometheus.NewRegistry()))
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/items", bytes.NewReader([]byte(`[]`)))
 	rec := httptest.NewRecorder()
