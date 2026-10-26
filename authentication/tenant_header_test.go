@@ -22,9 +22,9 @@ func TestWithTenantFromHeader(t *testing.T) {
 			name:         "valid single tenant from X-Scope-OrgID",
 			tenantHeader: "X-Scope-OrgID",
 			requestHeaders: map[string]string{
-				"X-Scope-OrgID": "team-alpha",
+				"X-Scope-OrgID": testTenantAlpha,
 			},
-			wantTenant: "team-alpha",
+			wantTenant: testTenantAlpha,
 			wantStatus: http.StatusOK,
 		},
 		{
@@ -183,7 +183,6 @@ func TestWithTenantFromHeader(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -222,7 +221,7 @@ func TestWithTenantFromHeader(t *testing.T) {
 
 			// Check status code
 			if rec.Code != tt.wantStatus {
-				t.Errorf("status code = %d, want %d, body = %s",					rec.Code, tt.wantStatus, rec.Body.String())
+				t.Errorf("status code = %d, want %d, body = %s", rec.Code, tt.wantStatus, rec.Body.String())
 			}
 
 			// Check tenant value if status is OK
@@ -242,7 +241,7 @@ func TestWithOptionalTenantFromHeader(t *testing.T) {
 		middleware := WithOptionalTenantFromHeader(tenantHeader)
 
 		req := httptest.NewRequest(http.MethodGet, "/api/logs/v1/loki/api/v1/query", nil)
-		req.Header.Set(tenantHeader, "team-alpha")
+		req.Header.Set(tenantHeader, testTenantAlpha)
 
 		var capturedTenant string
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -260,8 +259,8 @@ func TestWithOptionalTenantFromHeader(t *testing.T) {
 			t.Errorf("expected status 200, got %d", rr.Code)
 		}
 
-		if capturedTenant != "team-alpha" {
-			t.Errorf("expected tenant 'team-alpha', got '%s'", capturedTenant)
+		if capturedTenant != testTenantAlpha {
+			t.Errorf("expected tenant %q, got '%s'", testTenantAlpha, capturedTenant)
 		}
 	})
 
